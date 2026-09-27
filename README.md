@@ -47,6 +47,28 @@ places), **Aerial** (Esri World Imagery), and **Terrain** (OpenTopoMap). Choose
 unavailable, the bundled Natural Earth coastline and country geometry remains visible
 and the map reports that it is using the local fallback.
 
+**Offline tiles.** Standard, Aerial and Terrain tiles are stored on disk (browser
+Cache Storage) as you browse, and drawn from there first, so anywhere you've viewed
+stays viewable without a connection. Use **Save offline** (bottom-left of any map) to
+download the visible area for a zoom range and one or more basemaps ahead of time
+(capped at 60,000 tiles per basemap per download; respect each provider's tile usage
+policy). The same panel shows storage used and can clear saved tiles.
+
+**Shipping tiles with the desktop build.** Tiles are also written to
+`map-layers/tiles/<map>/<z>/<x>/<y>.tile` by the app's own host (the Vite dev server
+under `npm run dev` / `npm run dev:desktop`, or the desktop host). That folder is
+included in the installer by electron-builder (`extraResources: map-layers/**`), so
+everything browsed or downloaded while online ships in the next
+`npm run build:desktop` and is viewable offline on every installed copy. Lookup order
+at runtime: local browser store → bundled pack → network.
+
+- Tiles saved before this existed: open **Save offline** → *Copy saved tiles into bundle*.
+- Headless, before a build:
+  `npm run tiles:fetch -- --maps standard,aerial --bbox 4.7,52.3,5.1,52.45 --zoom 2-14`
+- See what will ship: `npm run tiles:summary` (also printed by `build:desktop`).
+
+`map-layers/` is git-ignored, so tile packs stay out of the repository.
+
 ### The layer database
 
 Map data lives in a single compressed file, `map-layers/layers.db`, inside the

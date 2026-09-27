@@ -1,30 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { GeoJSON, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { GeoJSON, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Loader2 } from 'lucide-react';
 import { DETAIL_ZOOM, graticuleLines, loadBasemap, selectLabels } from '../../lib/offlineBasemap';
+import CachedTileLayer from './CachedTileLayer';
+import OfflineDownloadPanel from './OfflineDownloadPanel';
 import useBasemapTheme from './useBasemapTheme';
 import { useLayerState } from './layers';
-
-const TILE_SOURCES = {
-  standard: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
-    maxNativeZoom: 19,
-    subdomains: 'abc',
-  },
-  aerial: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
-    maxNativeZoom: 19,
-  },
-  terrain: {
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://opentopomap.org" target="_blank" rel="noreferrer">OpenTopoMap</a> (CC-BY-SA) &mdash; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OSM</a>',
-    maxNativeZoom: 17,
-    subdomains: 'abc',
-  },
-};
 
 // Watches the zoom level and hands back basemap geometry for the current
 // scale: 110m below DETAIL_ZOOM, 50m above it. loadBasemap always resolves
@@ -66,26 +48,6 @@ function OceanLayer() {
   }, [map, active.ocean, palette]);
 
   return null;
-}
-
-function LiveBasemap({ mode, onTileStatus }) {
-  const source = TILE_SOURCES[mode];
-  if (!source) return null;
-  return (
-    <TileLayer
-      key={mode}
-      url={source.url}
-      attribution={source.attribution}
-      maxNativeZoom={source.maxNativeZoom}
-      maxZoom={19}
-      subdomains={source.subdomains}
-      eventHandlers={{
-        loading: () => onTileStatus?.('loading'),
-        load: () => onTileStatus?.('ready'),
-        tileerror: () => onTileStatus?.('error'),
-      }}
-    />
-  );
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
@@ -157,7 +119,8 @@ export default function OfflineBasemap({ mode = 'offline', onTileStatus }) {
   return (
     <>
       <OceanLayer />
-      {online && <LiveBasemap mode={mode} onTileStatus={onTileStatus} />}
+      {online && <CachedTileLayer mode={mode} onTileStatus={onTileStatus} />}
+      <OfflineDownloadPanel mode={mode} />
 
       {geometry && active.land && (
         <GeoJSON

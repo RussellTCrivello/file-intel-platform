@@ -2,6 +2,9 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import fs from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+
+const tilePack = createRequire(import.meta.url)('./desktop/tilePack.cjs')
 
 // https://vite.dev/config/
 const backend = process.env.SYLTHARAE_BACKEND_URL || 'http://127.0.0.1:5000'
@@ -17,6 +20,10 @@ function layerMiddleware(req, res, next) {
   const pathname = (req.url || '').split('?')[0]
   if (!pathname.startsWith('/layers/')) { next(); return }
   const name = decodeURIComponent(pathname.slice('/layers/'.length))
+  // Raster tile pack. Under the dev server tiles are written straight into
+  // the project's map-layers/tiles, so whatever you browse or download while
+  // developing is packaged by the next `npm run build:desktop`.
+  if (tilePack.handleTileRequest(req, res, name, { roots: [layerFolder], writeRoot: layerFolder })) return
   const target = path.resolve(layerFolder, name)
   // Never serve anything outside the layer folder, whatever the request says.
   if (!target.startsWith(layerFolder + path.sep) || !fs.existsSync(target) || !fs.statSync(target).isFile()) {

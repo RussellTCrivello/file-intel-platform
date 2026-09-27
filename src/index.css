@@ -113,6 +113,33 @@ body {
   .text-slate-400 { color: var(--ink-400); }
   .text-slate-500 { color: var(--ink-500); }
   .text-slate-600 { color: var(--ink-600); }
+  .text-slate-50, .text-slate-100 { color: var(--ink); }
+
+  /* Headings, counts and titles written as text-white for the former dark
+     canvas are invisible on the light surfaces. Render them in the primary
+     ink instead... */
+  .text-white, .hover\:text-white:hover { color: var(--ink) !important; }
+  /* ...except where white really sits on a solid coloured fill (primary
+     buttons, badges, the logo tile), on that element or an ancestor. */
+  :is([class*="bg-blue-"], [class*="bg-teal-"], [class*="bg-emerald-"], [class*="bg-green-"],
+      [class*="bg-red-"], [class*="bg-rose-"], [class*="bg-amber-"], [class*="bg-orange-"],
+      [class*="bg-yellow-"], [class*="bg-indigo-"], [class*="bg-violet-"], [class*="bg-purple-"],
+      [class*="bg-sky-"], [class*="bg-cyan-"], [class*="bg-pink-"], [class*="bg-fuchsia-"],
+      [class*="bg-lime-"], [class*="bg-slate-6"], [class*="bg-slate-7"], [class*="bg-slate-8"],
+      [class*="bg-slate-9"], [class*="bg-gray-"], [class*="bg-black"], [class*="bg-accent"],
+      [class*="bg-gradient-"])
+    :is(.text-white, .hover\:text-white:hover),
+  :is([class*="bg-blue-"], [class*="bg-teal-"], [class*="bg-emerald-"], [class*="bg-green-"],
+      [class*="bg-red-"], [class*="bg-rose-"], [class*="bg-amber-"], [class*="bg-orange-"],
+      [class*="bg-yellow-"], [class*="bg-indigo-"], [class*="bg-violet-"], [class*="bg-purple-"],
+      [class*="bg-sky-"], [class*="bg-cyan-"], [class*="bg-pink-"], [class*="bg-fuchsia-"],
+      [class*="bg-lime-"], [class*="bg-slate-6"], [class*="bg-slate-7"], [class*="bg-slate-8"],
+      [class*="bg-slate-9"], [class*="bg-gray-"], [class*="bg-black"], [class*="bg-accent"],
+      [class*="bg-gradient-"]):is(.text-white, .hover\:text-white:hover) { color: #fff !important; }
+  /* Translucent tints (bg-blue-500/10 …) are pale, so they keep dark ink. */
+  :is([class*="00/5"], [class*="00/1"], [class*="00/2"], [class*="00/3"])
+    :is(.text-white, .hover\:text-white:hover),
+  :is([class*="00/5"], [class*="00/1"], [class*="00/2"], [class*="00/3"]):is(.text-white, .hover\:text-white:hover) { color: var(--ink) !important; }
   /* Same idea for borders, so high contrast strengthens dividers as well. */
   .border-surface-border { border-color: var(--line); }
   /* Light-surface accessible variants for formerly pastel-on-dark labels. */

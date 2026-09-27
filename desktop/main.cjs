@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
 const layerStore = require('./layerStore.cjs');
+const tilePack = require('./tilePack.cjs');
 
 // The layer database is read over HTTP from the app's own local host rather
 // than over IPC, so the renderer has exactly one read path whether it is
@@ -49,6 +50,15 @@ function startDesktopHost() {
       return;
     }
     if (pathname.startsWith(LAYER_ROUTE)) {
+      // Raster tiles: read from the writable layer folder, then from the pack
+      // shipped inside the installer (when the two differ). New tiles are
+      // added to the writable folder.
+      const folder = layerStore.resolveFolder();
+      const tileName = decodeURIComponent(pathname.slice(LAYER_ROUTE.length));
+      if (tilePack.handleTileRequest(req, res, tileName, {
+        roots: [folder.dir, folder.seed],
+        writeRoot: folder.location === 'unwritable' ? null : folder.dir,
+      })) return;
       if (serveLayerFile(pathname, res)) return;
       res.writeHead(404, { 'Content-Type': 'text/plain' }).end('No such layer file.');
       return;

@@ -5,6 +5,20 @@ import L from './leafletGlobal.js';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.heat';
+
+// leaflet.heat schedules its redraw on requestAnimationFrame but never
+// cancels the frame on removal, so a layer removed between scheduling and
+// the frame (StrictMode remounts, view switches) crashes on `this._map`
+// being null. Make the deferred redraw a no-op once detached.
+if (L.HeatLayer && !L.HeatLayer.prototype.__guarded) {
+  const redraw = L.HeatLayer.prototype._redraw;
+  L.HeatLayer.prototype._redraw = function guardedRedraw(...args) {
+    this._frame = null;
+    if (!this._map) return undefined;
+    return redraw.apply(this, args);
+  };
+  L.HeatLayer.prototype.__guarded = true;
+}
 import { renderPopup } from './reactPopup';
 import { useLayerState } from './layers.jsx';
 
@@ -137,10 +151,10 @@ function Density({ points }) {
 
   useEffect(() => {
     const layer = layerRef.current;
-    if (!layer) return;
+    if (!layer || !map.hasLayer(layer)) return;
     if (active.heat && points.length) layer.setLatLngs(points.map((p) => [p.lat, p.lng, p.weight ?? 1]));
     else layer.setLatLngs([]);
-  }, [points, active.heat]);
+  }, [map, points, active.heat]);
 
   return null;
 }
