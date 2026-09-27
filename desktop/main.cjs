@@ -1,9 +1,31 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const http = require('node:http');
 const https = require('node:https');
 const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
+const layerStore = require('./layerStore.cjs');
+
+// The layer database is read over HTTP from the app's own local host rather
+// than over IPC, so the renderer has exactly one read path whether it is
+// running inside Electron or under `npm run dev`. Writes (user pins,
+// downloaded databases) still need IPC, because they change the file.
+const LAYER_ROUTE = '/layers/';
+function serveLayerFile(pathname, res) {
+  const name = decodeURIComponent(pathname.slice(LAYER_ROUTE.length));
+  const folder = layerStore.resolveFolder().dir;
+  const target = path.resolve(folder, name);
+  // Never serve anything outside the layer folder, whatever the request says.
+  if (!target.startsWith(folder + path.sep)) { res.writeHead(403).end('Forbidden'); return true; }
+  if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return false;
+  const body = fs.readFileSync(target);
+  res.writeHead(200, {
+    'Content-Type': 'application/octet-stream',
+    'Content-Length': body.length,
+    'Cache-Control': 'no-store',
+  }).end(body);
+  return true;
+}
 
 const isDev = process.argv.includes('--dev');
 const backend = new URL(process.env.SYLTHARAE_BACKEND_URL || 'http://127.0.0.1:5000');
@@ -24,6 +46,11 @@ function startDesktopHost() {
         if (error) { res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Desktop app assets are missing. Run npm run build:desktop first.'); return; }
         res.writeHead(200, { 'Content-Type': contentType(target), 'Cache-Control': 'no-store' }).end(body);
       });
+      return;
+    }
+    if (pathname.startsWith(LAYER_ROUTE)) {
+      if (serveLayerFile(pathname, res)) return;
+      res.writeHead(404, { 'Content-Type': 'text/plain' }).end('No such layer file.');
       return;
     }
     // Keep API traffic same-origin for the renderer/session cookies while forwarding
@@ -48,13 +75,35 @@ function startDesktopHost() {
   });
 }
 
+// --- layer database IPC ---------------------------------------------------
+// The preload bridge is the only caller, and it accepts a layer id (never a
+// filesystem path) or a download URL.
+function handle(channel, fn) {
+  ipcMain.handle(channel, async (_event, ...args) => {
+    try { return { ok: true, value: await fn(...args) }; }
+    catch (error) { return { ok: false, error: error.message || String(error) }; }
+  });
+}
+
+handle('layers:status', () => layerStore.summary());
+handle('layers:read', (id) => layerStore.readSection(id));
+handle('layers:write', (id, kind, text, meta) => layerStore.writeSection(id, kind, text, meta));
+handle('layers:download', (url) => layerStore.download(url));
+handle('layers:remove', () => layerStore.removeDatabase());
+
+app.on('browser-window-created', (_event, win) => {
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.send('layers:changed', { reason: 'ready' });
+  });
+});
+
 async function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 940, minWidth: 900, minHeight: 620,
     title: 'SYLTHARAE · File Intelligence',
     backgroundColor: '#f4f6f8',
     show: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   });
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });

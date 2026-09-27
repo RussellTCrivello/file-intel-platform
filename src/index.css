@@ -9,29 +9,69 @@
   --surface-muted: #f8fafc;
   --surface-raised: #eef2f6;
   --line: #dbe3eb;
+
+  /* Existing screens use slate text tokens designed for the former dark
+     canvas. On a dark canvas a *higher* legacy number meant *dimmer* text,
+     so on the light product surfaces the mapping is deliberately reversed:
+     200/300/400 are the primary ink, 500 is muted, 600 is tertiary. Keep it
+     reversed and keep it monotonic (each step lighter than the one before) --
+     an earlier build had 500 lighter than 400 and 600 lighter than both,
+     which made headings, labels and metadata read at near-identical
+     contrast. Every step clears WCAG AA (4.5:1) on white, surface-850 and
+     surface-800, which is the lightest surface these tokens sit on. */
+  --ink-200: #263445;
+  --ink-300: #34465a;
+  --ink-400: #3f5064;
+  --ink-500: #4e5e72;
+  --ink-600: #5c6d82;
+
   --ink: #263445;
-  --ink-muted: #68798b;
+  --ink-muted: #4e5e72;
   --brand: #0f766e;
   --brand-soft: #e8f5f3;
   --focus: #0d9488;
+
+  /* Offline basemap. Read by the Leaflet layers through getComputedStyle so
+     the map follows the active theme instead of hardcoding a dark ocean. */
+  --map-ocean: #dceaf1;
+  --map-land: #ffffff;
+  --map-border: #c3d3dd;
+  --map-graticule: #d5e4ec;
+  --map-label: #4e5e72;
 }
 
 ::selection { background: #bce9e3; color: #123a37; }
 
-:root[data-theme='mist'] { --canvas: #f1f5f9; --surface-muted: #f1f5f9; --surface-raised: #e7edf4; }
-:root[data-theme='sage'] { --canvas: #f2f6f2; --surface-muted: #f5f8f5; --surface-raised: #e9f0e9; --brand: #3f735d; }
+:root[data-theme='mist'] { --canvas: #f1f5f9; --surface-muted: #f1f5f9; --surface-raised: #e7edf4; --line: #cbd5e1; --map-ocean: #d9e6ee; --map-land: #f8fafc; --map-border: #b6c8d6; --map-graticule: #d0dfe9; }
+:root[data-theme='sage'] { --canvas: #f2f6f2; --surface-muted: #f5f8f5; --surface-raised: #e9f0e9; --line: #d2ded2; --brand: #3f735d; --map-ocean: #ddeae0; --map-land: #f8fbf8; --map-border: #b9cdbc; --map-graticule: #d6e4d7; --map-label: #3f5a47; }
 :root[data-theme='mist'] .bg-surface-950, :root[data-theme='mist'] body { background-color: #f1f5f9 !important; }
 :root[data-theme='mist'] .bg-surface-850 { background-color: #f1f5f9 !important; }
 :root[data-theme='mist'] .bg-surface-800 { background-color: #e9eff5 !important; }
 :root[data-theme='sage'] .bg-surface-950, :root[data-theme='sage'] body { background-color: #f2f6f2 !important; }
 :root[data-theme='sage'] .bg-surface-850 { background-color: #f5f8f5 !important; }
 :root[data-theme='sage'] .bg-surface-800 { background-color: #e9f0e9 !important; }
-:root[data-theme='mist'] .border-surface-border { border-color: #cbd5e1 !important; }
-:root[data-theme='sage'] .border-surface-border { border-color: #d2ded2 !important; }
 :root[data-scale='compact'] { font-size: 14px; }
 :root[data-scale='standard'] { font-size: 16px; }
 :root[data-scale='large'] { font-size: 18px; }
-:root[data-contrast='high'] { --line: #9aa9b8; --ink: #172433; --ink-muted: #435466; }
+/* "Higher contrast" in Settings. These have to live on the same custom
+   properties the .text-slate-* utilities read, otherwise the toggle only
+   ever changed a focus ring while the text and borders it advertises stayed
+   exactly the same. */
+:root[data-contrast='high'] {
+  --line: #9aa9b8;
+  --ink: #172433;
+  --ink-muted: #3a4a5e;
+  --ink-200: #172433;
+  --ink-300: #263445;
+  --ink-400: #2f3d50;
+  --ink-500: #3a4a5e;
+  --ink-600: #4a5a6e;
+  --map-ocean: #cfe0ea;
+  --map-land: #ffffff;
+  --map-border: #9aa9b8;
+  --map-graticule: #c2d4e0;
+  --map-label: #172433;
+}
 :root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 :root[data-contrast='high'] :focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
 
@@ -63,19 +103,23 @@ body {
 
 .leaflet-container { background: #f8fafc !important; }
 
-/* Existing screens use slate text tokens designed for the former dark canvas. */
+/* Existing screens use slate text tokens designed for the former dark canvas.
+   These read the --ink-* custom properties so the active theme and the
+   "Higher contrast" setting actually reach the text; the values themselves
+   live on :root above. */
 @layer utilities {
-  .text-slate-200 { color: #263445; }
-  .text-slate-300 { color: #34465a; }
-  .text-slate-400 { color: #526477; }
-  .text-slate-500 { color: #68798b; }
-  .text-slate-600 { color: #8492a1; }
+  .text-slate-200 { color: var(--ink-200); }
+  .text-slate-300 { color: var(--ink-300); }
+  .text-slate-400 { color: var(--ink-400); }
+  .text-slate-500 { color: var(--ink-500); }
+  .text-slate-600 { color: var(--ink-600); }
+  /* Same idea for borders, so high contrast strengthens dividers as well. */
+  .border-surface-border { border-color: var(--line); }
   /* Light-surface accessible variants for formerly pastel-on-dark labels. */
   .text-blue-200, .text-blue-300 { color: #0f766e; }
-  .text-blue-400 { color: #0d9488; }
-  .text-emerald-200, .text-emerald-300 { color: #15803d; }
-  .text-emerald-400 { color: #16803c; }
-  .text-amber-300, .text-amber-400 { color: #a16207; }
+  .text-blue-400 { color: #0a756d; }
+  .text-emerald-200, .text-emerald-300, .text-emerald-400 { color: #166534; }
+  .text-amber-300, .text-amber-400 { color: #92400e; }
   .text-red-200, .text-red-300 { color: #b42318; }
   .text-red-400 { color: #c24136; }
 }

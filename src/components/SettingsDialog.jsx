@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Accessibility, Check, Globe2, RotateCcw, SlidersHorizontal, Sparkles, Table2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Accessibility, Check, Database, Globe2, RotateCcw, SlidersHorizontal, Sparkles, Table2 } from 'lucide-react';
 import Modal from './ui/Modal';
 import { useAppStore } from '../store/useAppStore';
 import { useSearchStore } from '../store/useSearchStore';
+import MapDataPanel from './settings/MapDataPanel';
 
 const defaults = {
   theme: 'porcelain', fontScale: 'standard', density: 'comfortable',
@@ -16,6 +17,7 @@ const sections = [
   { id: 'language', label: 'Language & region', icon: Globe2 },
   { id: 'tables', label: 'Tables & browsing', icon: Table2 },
   { id: 'accessibility', label: 'Accessibility', icon: Accessibility },
+  { id: 'mapdata', label: 'Map data', icon: Database },
 ];
 
 function SelectSetting({ label, description, value, onChange, options }) {
@@ -34,7 +36,14 @@ function ToggleSetting({ label, description, checked, onChange }) {
 }
 
 export default function SettingsDialog({ onClose }) {
-  const preferences = useAppStore((s) => ({ ...defaults, ...s.preferences }));
+  // Select the stored object by reference, then merge the defaults during
+  // render. Building the merged object *inside* the selector returned a
+  // brand-new object on every store read, which zustand hands to React's
+  // useSyncExternalStore as getSnapshot -- React saw a "changed" value on
+  // every read and re-rendered forever ("Maximum update depth exceeded").
+  // The snapshot must be referentially stable between real store updates.
+  const storedPreferences = useAppStore((s) => s.preferences);
+  const preferences = useMemo(() => ({ ...defaults, ...storedPreferences }), [storedPreferences]);
   const updatePreferences = useAppStore((s) => s.updatePreferences);
   const setPerPage = useSearchStore((s) => s.setPerPage);
   const perPage = useSearchStore((s) => s.perPage);
@@ -42,6 +51,7 @@ export default function SettingsDialog({ onClose }) {
   const set = (key) => (value) => updatePreferences({ [key]: value });
   const reset = () => { updatePreferences(defaults); useAppStore.getState().setDensity(defaults.density); setPerPage(defaults.pageSize); };
   const content = {
+    mapdata: <MapDataPanel />,
     appearance: <>
       <h3 className="mb-1 text-sm font-semibold text-slate-800">A workspace that feels right</h3><p className="mb-3 text-xs text-slate-500">Choose a light surface treatment and tune the density of information.</p>
       <SelectSetting label="Color treatment" description="Light palettes only; your choice is saved on this device." value={preferences.theme} onChange={set('theme')} options={[["porcelain", 'Porcelain · crisp white'], ["mist", 'Mist · cool gray'], ["sage", 'Sage · soft green']]} />
