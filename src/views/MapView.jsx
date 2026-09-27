@@ -12,6 +12,7 @@ import DataLayers from '../components/map/DataLayers';
 import LayerSwitcher from '../components/map/LayerSwitcher';
 import MapSearch from '../components/map/MapSearch';
 import CoordinateReadout from '../components/map/CoordinateReadout';
+import { MapNavigationControl, MapTypeControl } from '../components/map/MapControls';
 
 // This view has geotagged files but no place-mention gazetteer, so the
 // switcher doesn't offer a "Place mentions" toggle that could only ever be
@@ -37,7 +38,6 @@ function FitBounds({ points }) {
 // only source of geodata in the schema. Independent of the current
 // search/filter page: geolocation is its own real dataset, paginated by
 // the API's own cursor, not derived from `useSearchStore.results`.
-/** Keeps the coordinate readout in step with the map's real centre. */
 function TrackCentre({ onCentre }) {
   useMapEvents({ moveend: (e) => { const c = e.target.getCenter(); onCentre({ lat: c.lat, lng: c.lng }); } });
   return null;
@@ -49,6 +49,9 @@ export default function MapView() {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
+  const [basemap, setBasemap] = useState('standard');
+  const [tileStatus, setTileStatus] = useState('loading');
+  const [areaIds, setAreaIds] = useState(null);
   const mounted = useRef(true);
 
   const load = async () => {
@@ -70,6 +73,7 @@ export default function MapView() {
       if (!mounted.current) return;
       setPoints(all);
       setTotal(totalEstimated);
+      setAreaIds(null);
       setStatus('ready');
     } catch (e) {
       if (!mounted.current) return;
@@ -90,8 +94,7 @@ export default function MapView() {
   // Normalise the API rows into the shape the imperative marker layers take.
   // Popups are built lazily (a function, not a node) because only one is open
   // at a time and each one is rendered through a single shared React root.
-  // Declared above the early returns so the hook order stays stable.
-  const markers = useMemo(() => points.map((p) => {
+  const allMarkers = useMemo(() => points.map((p) => {
     const family = typeFamilyOf(p.file_type);
     const color = typeColorOf(p.file_type);
     return {
@@ -114,71 +117,56 @@ export default function MapView() {
     };
   }), [points, openDetail]);
 
-  if (status === 'loading') {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
-        <Loader2 size={22} className="animate-spin" />
-        <span className="text-[13px]">Loading geolocation data…</span>
-      </div>
-    );
-  }
+  const markers = useMemo(
+    () => (areaIds ? allMarkers.filter((marker) => areaIds.has(marker.id)) : allMarkers),
+    [allMarkers, areaIds],
+  );
 
-  if (status === 'error') {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
-        <MapPinOff size={28} />
-        <span className="text-[13px]">{error}</span>
-        <button onClick={load} className="mt-2 flex items-center gap-1.5 rounded-md bg-surface-800 px-3 py-1.5 text-[12px] text-slate-300 hover:bg-surface-750">
-          <RefreshCw size={13} /> Retry
-        </button>
-      </div>
-    );
-  }
+  const tileMessage = basemap === 'offline'
+    ? 'Bundled vector basemap'
+    : tileStatus === 'error'
+      ? 'Live tiles unavailable · showing local geography'
+      : 'Live map tiles';
 
-  if (points.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-slate-500">
-        <MapPinOff size={30} />
-        <span className="text-[13.5px] font-medium text-slate-400">No geolocation data available</span>
-        <p className="max-w-md text-[12px] leading-relaxed text-slate-500">
-          None of the ingested files carry GPS coordinates (<code className="text-slate-400">paths.coordinates</code> is empty for every record in this dataset). This view will populate automatically as soon as files with embedded location metadata are ingested.
-        </p>
-      </div>
-    );
-  }
-
-  // Normalise the API rows into the shape the imperative marker layers take.
-  // Popups are built lazily (a function, not a node) because only one is open
-  // at a time and each one is rendered through a single shared React root.
   return (
-    // `isolate` creates a fresh stacking context around the map: Leaflet's
-    // own CSS gives its panes/controls z-index up to 1000, and without a
-    // containing stacking context those values compare directly against
-    // *everything else on the page* (portaled drawers/dialogs included),
-    // letting map chrome render on top of e.g. the file detail drawer when
-    // it's opened from a marker popup. Trapping them here keeps the map's
-    // internal layering local to the map only.
     <LayerStateProvider available={MAP_VIEW_LAYERS}>
       <div className="relative isolate h-full animate-fade-in">
-        <div className="absolute right-3 top-3 z-[1000] rounded-lg border border-surface-border bg-surface-900/90 px-3 py-1.5 text-[11.5px] text-slate-300 shadow-panel backdrop-blur">
-          {points.length} of {total} geotagged file{total === 1 ? '' : 's'}
+        <div className="absolute right-3 top-[78px] z-[1000] rounded-lg border border-surface-border bg-surface-900/90 px-3 py-1.5 text-[11.5px] text-slate-300 shadow-panel backdrop-blur">
+          {areaIds ? `${markers.length} of ${allMarkers.length} files in selected area` : `${points.length} of ${total} geotagged file${total === 1 ? '' : 's'}`}
         </div>
-        {/* maxZoom is not optional: leaflet.heat calls map.getMaxZoom() when
-            it builds its canvas and throws without it. 12 is also the point
-            past which the bundled 50m coastline stops adding information. */}
-        <MapContainer center={center} zoom={2} minZoom={2} maxZoom={12} className="h-full w-full">
+        <MapContainer center={center} zoom={2} minZoom={2} maxZoom={19} className="h-full w-full">
           <TrackCentre onCentre={trackCentre} />
-          <OfflineBasemap />
+          <OfflineBasemap mode={basemap} onTileStatus={setTileStatus} />
           <FitBounds points={points} />
           <DataLayers points={markers} />
-          {/* These two read the live map (flyTo, cursor tracking), so they must
-              be descendants of MapContainer. Leaflet renders children into the
-              map pane, and their absolute positioning resolves against the map
-              container -- which is the same place they visually belong. */}
-          <MapSearch points={markers} />
+          <MapSearch points={allMarkers} onSelectArea={setAreaIds} onClearArea={() => setAreaIds(null)} />
           <CoordinateReadout centre={viewCentre} />
+          <MapNavigationControl />
         </MapContainer>
+        <MapTypeControl value={basemap} onChange={(value) => { setBasemap(value); setTileStatus(value === 'offline' ? 'ready' : 'loading'); }} tileStatus={tileStatus} />
         <LayerSwitcher />
+
+        {status === 'loading' && (
+          <div className="pointer-events-none absolute left-[310px] top-3 z-[1000] flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface-900/90 px-2.5 py-1.5 text-[11px] text-slate-500 shadow-panel backdrop-blur">
+            <Loader2 size={12} className="animate-spin" /> Loading geotagged files…
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="absolute left-1/2 top-3 z-[1000] flex max-w-[min(420px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-lg border border-amber-500/30 bg-white/95 px-3 py-2 text-[11px] text-amber-700 shadow-panel">
+            <MapPinOff size={14} className="shrink-0" />
+            <span className="min-w-0 flex-1">{error}</span>
+            <button onClick={load} className="flex shrink-0 items-center gap-1 rounded border border-surface-border px-2 py-1 font-medium text-slate-600 hover:bg-surface-850"><RefreshCw size={11} /> Retry</button>
+          </div>
+        )}
+        {status === 'ready' && points.length === 0 && (
+          <div className="pointer-events-none absolute bottom-16 left-1/2 z-[900] -translate-x-1/2 rounded-lg border border-surface-border bg-white/95 px-3 py-2 text-center shadow-panel">
+            <div className="flex items-center justify-center gap-1.5 text-[12px] font-medium text-slate-700"><MapPinOff size={14} /> No geotagged files</div>
+            <p className="mt-0.5 max-w-[270px] text-[10.5px] leading-relaxed text-slate-500">The basemap, search, coordinate tools and aerial imagery are still available.</p>
+          </div>
+        )}
+        <div className="pointer-events-none absolute bottom-3 right-[116px] z-[900] rounded border border-surface-border bg-white/80 px-1.5 py-0.5 text-[9.5px] text-slate-500 shadow-sm">
+          {tileMessage}
+        </div>
       </div>
     </LayerStateProvider>
   );

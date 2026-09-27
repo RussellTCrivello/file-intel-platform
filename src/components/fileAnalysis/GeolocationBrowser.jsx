@@ -11,6 +11,7 @@ import DataLayers from '../map/DataLayers';
 import LayerSwitcher from '../map/LayerSwitcher';
 import MapSearch from '../map/MapSearch';
 import CoordinateReadout from '../map/CoordinateReadout';
+import { MapNavigationControl, MapTypeControl } from '../map/MapControls';
 
 // This view is driven by place mentions scanned out of file text, so the
 // file-marker layers (which read a different endpoint) stay out of the
@@ -47,6 +48,9 @@ export default function GeolocationBrowser({ onHome }) {
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState(null);
   const [viewCentre, setViewCentre] = useState(null);
+  const [basemap, setBasemap] = useState('standard');
+  const [tileStatus, setTileStatus] = useState('loading');
+  const [areaIds, setAreaIds] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -78,7 +82,7 @@ export default function GeolocationBrowser({ onHome }) {
 
   // Same normalisation as MapView: markers are described declaratively and
   // their popups built lazily, since only one popup is ever open.
-  const markers = useMemo(() => items.map((p) => ({
+  const allMarkers = useMemo(() => items.map((p) => ({
     id: p.place_name,
     lat: p.latitude,
     lng: p.longitude,
@@ -92,6 +96,11 @@ export default function GeolocationBrowser({ onHome }) {
       </div>
     ),
   })), [items, setPlace]);
+
+  const markers = useMemo(
+    () => (areaIds ? allMarkers.filter((marker) => areaIds.has(marker.id)) : allMarkers),
+    [allMarkers, areaIds],
+  );
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -122,32 +131,33 @@ export default function GeolocationBrowser({ onHome }) {
               never render above app chrome like the file detail drawer
               (z-[250]) or dialogs that sit elsewhere in the DOM. */}
           <div className="relative isolate h-64 lg:h-full">
-            {items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-slate-500">
-                {loading ? <Loader2 size={22} className="animate-spin" /> : (
-                  <>
-                    <MapPinOff size={28} />
-                    <span className="text-[13px] font-medium text-slate-400">No place mentions found yet</span>
-                    <p className="max-w-sm text-[12px] leading-relaxed text-slate-500">Run "Scan for locations" to search every document's real text for gazetteer place names.</p>
-                  </>
+            <LayerStateProvider available={GEO_LAYERS}>
+              <div className="relative h-full">
+                <MapContainer center={[20, 0]} zoom={2} minZoom={2} maxZoom={19} className="h-full w-full">
+                  <TrackCentre onCentre={setViewCentre} />
+                  <OfflineBasemap mode={basemap} onTileStatus={setTileStatus} />
+                  <FitBounds points={items} />
+                  <DataLayers places={markers} />
+                  {/* Descendants of MapContainer: both need the live map. */}
+                  <MapSearch points={allMarkers} onSelectArea={setAreaIds} onClearArea={() => setAreaIds(null)} />
+                  <CoordinateReadout centre={viewCentre} />
+                  <MapNavigationControl />
+                </MapContainer>
+                <MapTypeControl value={basemap} onChange={(value) => { setBasemap(value); setTileStatus(value === 'offline' ? 'ready' : 'loading'); }} tileStatus={tileStatus} />
+                <LayerSwitcher />
+                {loading && (
+                  <div className="pointer-events-none absolute left-[310px] top-3 z-[1000] flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface-900/90 px-2.5 py-1.5 text-[11px] text-slate-500 shadow-panel backdrop-blur">
+                    <Loader2 size={12} className="animate-spin" /> Loading place mentions…
+                  </div>
+                )}
+                {!loading && items.length === 0 && (
+                  <div className="pointer-events-none absolute bottom-16 left-1/2 z-[900] -translate-x-1/2 rounded-lg border border-surface-border bg-white/95 px-3 py-2 text-center shadow-panel">
+                    <div className="flex items-center justify-center gap-1.5 text-[12px] font-medium text-slate-700"><MapPinOff size={14} /> No place mentions found yet</div>
+                    <p className="mt-0.5 max-w-[270px] text-[10.5px] leading-relaxed text-slate-500">Run “Scan for locations” to search each document's real text against the gazetteer.</p>
+                  </div>
                 )}
               </div>
-            ) : (
-              <LayerStateProvider available={GEO_LAYERS}>
-                <div className="relative h-full">
-                  <MapContainer center={[20, 0]} zoom={2} minZoom={2} maxZoom={12} className="h-full w-full">
-                    <TrackCentre onCentre={setViewCentre} />
-                    <OfflineBasemap />
-                    <FitBounds points={items} />
-                    <DataLayers places={markers} />
-                    {/* Descendants of MapContainer: both need the live map. */}
-                    <MapSearch points={markers} />
-                    <CoordinateReadout centre={viewCentre} />
-                  </MapContainer>
-                  <LayerSwitcher />
-                </div>
-              </LayerStateProvider>
-            )}
+            </LayerStateProvider>
           </div>
           <div className="min-h-0 overflow-hidden border-t border-surface-border lg:border-l lg:border-t-0">
             <EntityList

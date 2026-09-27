@@ -23,7 +23,7 @@ function Row({ layer, active, onToggle }) {
  * Layer switcher. Rendered outside <MapContainer> (it is plain app chrome,
  * not a Leaflet layer) and positioned by its caller.
  */
-export default function LayerSwitcher({ right = 'right-3', bottom = 'bottom-3' }) {
+export default function LayerSwitcher({ right = 'right-3', bottom = 'bottom-10' }) {
   const { active, usable, toggle } = useLayerState();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -32,8 +32,7 @@ export default function LayerSwitcher({ right = 'right-3', bottom = 'bottom-3' }
 
   return (
     <div
-      className="absolute z-[1000] w-56 rounded-lg border border-surface-border bg-surface-900/95 shadow-panel backdrop-blur"
-      style={{ right, bottom }}
+      className={`absolute z-[1000] w-56 rounded-lg border border-surface-border bg-surface-900/95 shadow-panel backdrop-blur ${right} ${bottom}`}
     >
       <button
         onClick={() => setCollapsed((c) => !c)}

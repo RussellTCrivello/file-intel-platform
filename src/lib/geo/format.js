@@ -246,5 +246,8 @@ export function boundingBox(lat, lng, radiusKm) {
 }
 
 export function inBoundingBox(lat, lng, box) {
-  return lat >= box.south && lat <= box.north && lng >= box.west && lng <= box.east;
+  const longitudeInside = box.west <= box.east
+    ? lng >= box.west && lng <= box.east
+    : lng >= box.west || lng <= box.east;
+  return lat >= box.south && lat <= box.north && longitudeInside;
 }
