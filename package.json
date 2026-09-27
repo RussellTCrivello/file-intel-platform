@@ -10,10 +10,12 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "dev:desktop": "concurrently -k \"npm run layers:build && vite --host 127.0.0.1 --strictPort\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
-    "build:desktop": "npm run layers:build && vite build && electron-builder",
+    "build:desktop": "npm run layers:build && npm run tiles:summary && vite build && electron-builder",
     "desktop": "electron .",
     "layers:build": "node scripts/build-layers.mjs",
-    "prebuild": "node scripts/build-layers.mjs"
+    "prebuild": "node scripts/build-layers.mjs",
+    "tiles:fetch": "node scripts/fetch-tiles.mjs",
+    "tiles:summary": "node scripts/fetch-tiles.mjs --summary"
   },
   "build": {
     "appId": "ai.arena.syltharae.fileintel",

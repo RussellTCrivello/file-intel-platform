@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { Download, HardDriveDownload, Loader2, Trash2, X } from 'lucide-react';
 import {
   MAX_DOWNLOAD_TILES, TILE_SOURCES, cacheStats, cacheSupported, clearTiles, countTiles,
-  downloadArea, requestPersistentStorage,
+  downloadArea, exportCacheToPack, requestPersistentStorage,
 } from '../../lib/tileCache';
 
 const fmtBytes = (n) => (n == null ? '—' : n < 1e6 ? `${(n / 1e3).toFixed(0)} KB` : n < 1e9 ? `${(n / 1e6).toFixed(1)} MB` : `${(n / 1e9).toFixed(2)} GB`);
@@ -171,6 +171,21 @@ export default function OfflineDownloadPanel({ mode }) {
                     <Download size={12} /> Download area
                   </button>
                 )}
+              </div>
+
+              <div className="mt-2 border-t border-surface-border pt-2 text-[10.5px] leading-relaxed text-slate-500">
+                New tiles are also written to <span className="font-mono">map-layers/tiles</span>, which is packaged into the next desktop build.
+                <button type="button" disabled={running || !totalStored}
+                  onClick={async () => {
+                    setMessage('Copying saved tiles into the bundle…');
+                    const r = await exportCacheToPack({ onProgress: (p) => setMessage(`Copying into bundle… ${p.done.toLocaleString()} / ${p.total.toLocaleString()}`) });
+                    setMessage(r.writable === false
+                      ? 'This host can\'t write the tile bundle (run under npm run dev or the desktop app).'
+                      : `Bundle updated: ${r.written.toLocaleString()} tile(s) added${r.failed ? `, ${r.failed} failed` : ''}.`);
+                  }}
+                  className="ml-1 font-medium text-teal-600 hover:underline disabled:opacity-40">
+                  Copy saved tiles into bundle
+                </button>
               </div>
 
               <div className="mt-2 flex items-center justify-between border-t border-surface-border pt-2 text-[10.5px] text-slate-500">

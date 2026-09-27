@@ -70,6 +70,46 @@ export async function getCachedTile(mode, z, x, y) {
   } catch { return null; }
 }
 
+// --- Bundled tile pack ------------------------------------------------------
+// The app's own host (Vite dev server, or the desktop host) serves and accepts
+// tiles at /layers/tiles/<map>/<z>/<x>/<y>, backed by map-layers/tiles on disk.
+// That folder is packaged into the installer, so tiles written there while
+// online ship with the build. Hosts that don't have the route (a plain static
+// server) answer 404/405, and the pack is then simply skipped.
+const packUrl = (mode, z, x, y) => `/layers/tiles/${mode}/${z}/${x}/${y}`;
+let packWritable = true;
+let packReadable = true;
+
+async function getPackTile(mode, z, x, y) {
+  if (!packReadable) return null;
+  try {
+    const res = await fetch(packUrl(mode, z, x, y), { cache: 'no-store' });
+    if (res.ok) {
+      const blob = await res.blob();
+      return blob.type.startsWith('image/') ? blob : null;
+    }
+    if (res.status === 405 || res.status === 400) packReadable = false;
+  } catch { /* host unreachable: no pack */ }
+  return null;
+}
+
+async function hasPackTile(mode, z, x, y) {
+  if (!packReadable) return false;
+  try { return (await fetch(packUrl(mode, z, x, y), { method: 'HEAD', cache: 'no-store' })).ok; } catch { return false; }
+}
+
+/** Write a tile into the bundled pack. Resolves true when it was stored. */
+export async function putPackTile(mode, z, x, y, blob) {
+  if (!packWritable) return false;
+  try {
+    const res = await fetch(packUrl(mode, z, x, y), { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type || 'application/octet-stream' } });
+    if ([403, 404, 405].includes(res.status)) packWritable = false;
+    return res.ok;
+  } catch { return false; }
+}
+
+export const packIsWritable = () => packWritable;
+
 /** Fetch a tile from the network and store it. Resolves to a Blob. */
 export async function fetchAndStoreTile(mode, z, x, y, signal) {
   const res = await fetch(tileUrl(mode, z, x, y), { mode: 'cors', credentials: 'omit', signal });
@@ -83,6 +123,8 @@ export async function fetchAndStoreTile(mode, z, x, y, signal) {
       }));
     } catch { /* Quota exceeded: still show the tile, just don't keep it. */ }
   }
+  // Also keep it in the bundled pack, so it ships with the next build.
+  putPackTile(mode, z, x, y, blob);
   return blob;
 }
 
@@ -90,6 +132,8 @@ export async function fetchAndStoreTile(mode, z, x, y, signal) {
 export async function loadTile(mode, z, x, y) {
   const cached = await getCachedTile(mode, z, x, y);
   if (cached) return { blob: cached, fromCache: true };
+  const packed = await getPackTile(mode, z, x, y);
+  if (packed) return { blob: packed, fromCache: true };
   return { blob: await fetchAndStoreTile(mode, z, x, y), fromCache: false };
 }
 
@@ -155,7 +199,14 @@ export async function downloadArea({ mode, bounds, minZoom, maxZoom, signal, onP
       if (next.done) return;
       const [z, x, y] = next.value;
       try {
-        if (cache && await cache.match(tileKey(mode, z, x, y))) progress.skipped++;
+        if (cache && await cache.match(tileKey(mode, z, x, y))) {
+          // Stored locally; make sure the bundled pack has it too.
+          if (packWritable && !(await hasPackTile(mode, z, x, y))) {
+            const hit = await cache.match(tileKey(mode, z, x, y));
+            if (hit) await putPackTile(mode, z, x, y, await hit.blob());
+          }
+          progress.skipped++;
+        } else if (await hasPackTile(mode, z, x, y)) progress.skipped++;
         else progress.bytes += (await fetchAndStoreTile(mode, z, x, y, signal)).size;
       } catch (e) {
         if (signal?.aborted) return;
@@ -198,4 +249,28 @@ export async function clearTiles(mode) {
 /** Ask the browser not to evict the tile store under storage pressure. */
 export async function requestPersistentStorage() {
   try { return await navigator.storage?.persist?.(); } catch { return false; }
+}
+
+/**
+ * Copy every tile in the local store into the bundled pack (for tiles saved
+ * before the pack existed, or while the host was read-only).
+ */
+export async function exportCacheToPack({ onProgress, signal } = {}) {
+  const cache = await openCache();
+  if (!cache) return { done: 0, total: 0, written: 0 };
+  const keys = await cache.keys();
+  const out = { done: 0, total: keys.length, written: 0, failed: 0 };
+  for (const req of keys) {
+    if (signal?.aborted) break;
+    const [, mode, z, x, y] = new URL(req.url).pathname.split('/');
+    if (mode in TILE_SOURCES && !(await hasPackTile(mode, z, x, y))) {
+      const hit = await cache.match(req);
+      if (hit && await putPackTile(mode, z, x, y, await hit.blob())) out.written++;
+      else out.failed++;
+      if (!packWritable) break;
+    }
+    out.done++;
+    onProgress?.({ ...out });
+  }
+  return { ...out, writable: packWritable };
 }
