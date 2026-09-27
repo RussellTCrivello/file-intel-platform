@@ -1,10 +1,28 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
-import { MapPinOff, Loader2, ScanSearch, RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { MapContainer, useMap, useMapEvents } from 'react-leaflet';
+import { MapPinOff, Loader2, ScanSearch } from 'lucide-react';
 import { fileAnalysis as fileAnalysisApi } from '../../lib/sylthaeApi';
 import Breadcrumb from './Breadcrumb';
 import EntityList, { EntityCard } from './EntityList';
 import FacetFileList from './FacetFileList';
+import { LayerStateProvider } from '../map/layers.jsx';
+import OfflineBasemap from '../map/OfflineBasemap';
+import DataLayers from '../map/DataLayers';
+import LayerSwitcher from '../map/LayerSwitcher';
+import MapSearch from '../map/MapSearch';
+import CoordinateReadout from '../map/CoordinateReadout';
+
+// This view is driven by place mentions scanned out of file text, so the
+// file-marker layers (which read a different endpoint) stay out of the
+// switcher rather than showing up permanently empty.
+const GEO_LAYERS = [
+  'ocean', 'land', 'countries', 'borders', 'labels', 'graticule', 'places',
+];
+
+function TrackCentre({ onCentre }) {
+  useMapEvents({ moveend: (e) => { const c = e.target.getCenter(); onCentre({ lat: c.lat, lng: c.lng }); } });
+  return null;
+}
 
 function FitBounds({ points }) {
   const map = useMap();
@@ -28,6 +46,7 @@ export default function GeolocationBrowser({ onHome }) {
   const [error, setError] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState(null);
+  const [viewCentre, setViewCentre] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -56,6 +75,23 @@ export default function GeolocationBrowser({ onHome }) {
 
   const crumbs = [{ label: 'Geolocation', onClick: place ? () => setPlace(null) : null }];
   if (place) crumbs.push({ label: place.place_name });
+
+  // Same normalisation as MapView: markers are described declaratively and
+  // their popups built lazily, since only one popup is ever open.
+  const markers = useMemo(() => items.map((p) => ({
+    id: p.place_name,
+    lat: p.latitude,
+    lng: p.longitude,
+    color: '#0f766e',
+    radius: 6 + Math.min(10, Math.sqrt(p.file_count) * 3),
+    popup: () => (
+      <div className="flex min-w-[160px] flex-col gap-1 text-[12px]">
+        <div className="font-semibold">{p.place_name}{p.country ? `, ${p.country}` : ''}</div>
+        <div className="text-slate-600">{p.file_count} file{p.file_count === 1 ? '' : 's'} · {p.mention_count} mention{p.mention_count === 1 ? '' : 's'}</div>
+        <button onClick={() => setPlace(p)} className="mt-1 rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white">View files</button>
+      </div>
+    ),
+  })), [items, setPlace]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -97,23 +133,20 @@ export default function GeolocationBrowser({ onHome }) {
                 )}
               </div>
             ) : (
-              <MapContainer center={[20, 0]} zoom={2} className="h-full w-full" style={{ background: '#0b0e14' }}>
-                <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <FitBounds points={items} />
-                {items.map((p) => (
-                  <CircleMarker key={p.place_name} center={[p.latitude, p.longitude]} radius={6 + Math.min(10, Math.sqrt(p.file_count) * 3)}
-                    pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.6, weight: 1.5 }}
-                    eventHandlers={{ click: () => setPlace(p) }}>
-                    <Popup>
-                      <div className="flex min-w-[160px] flex-col gap-1 text-[12px]">
-                        <div className="font-semibold">{p.place_name}{p.country ? `, ${p.country}` : ''}</div>
-                        <div className="text-slate-600">{p.file_count} file{p.file_count === 1 ? '' : 's'} · {p.mention_count} mention{p.mention_count === 1 ? '' : 's'}</div>
-                        <button onClick={() => setPlace(p)} className="mt-1 rounded bg-blue-600 px-2 py-1 text-[11px] font-medium text-white">View files</button>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                ))}
-              </MapContainer>
+              <LayerStateProvider available={GEO_LAYERS}>
+                <div className="relative h-full">
+                  <MapContainer center={[20, 0]} zoom={2} minZoom={2} maxZoom={12} className="h-full w-full">
+                    <TrackCentre onCentre={setViewCentre} />
+                    <OfflineBasemap />
+                    <FitBounds points={items} />
+                    <DataLayers places={markers} />
+                    {/* Descendants of MapContainer: both need the live map. */}
+                    <MapSearch points={markers} />
+                    <CoordinateReadout centre={viewCentre} />
+                  </MapContainer>
+                  <LayerSwitcher />
+                </div>
+              </LayerStateProvider>
             )}
           </div>
           <div className="min-h-0 overflow-hidden border-t border-surface-border lg:border-l lg:border-t-0">

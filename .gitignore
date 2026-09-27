@@ -23,3 +23,7 @@ release
 *.njsproj
 *.sln
 *.sw?
+
+# Generated offline map layer database (rebuilt by `npm run layers:build`,
+# and automatically by the prebuild hook). ~1 MB binary.
+map-layers/

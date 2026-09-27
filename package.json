@@ -9,19 +9,51 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "dev:desktop": "concurrently -k \"vite --host 127.0.0.1 --strictPort\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
-    "build:desktop": "vite build && electron-builder",
-    "desktop": "electron ."
+    "dev:desktop": "concurrently -k \"npm run layers:build && vite --host 127.0.0.1 --strictPort\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
+    "build:desktop": "npm run layers:build && vite build && electron-builder",
+    "desktop": "electron .",
+    "layers:build": "node scripts/build-layers.mjs",
+    "prebuild": "node scripts/build-layers.mjs"
   },
   "build": {
     "appId": "ai.arena.syltharae.fileintel",
     "productName": "SYLTHARAE File Intelligence",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "desktop/**/*", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "src/lib/layerDb.js",
+      "package.json"
+    ],
     "asar": true,
-    "mac": { "target": ["dmg", "zip"] },
-    "win": { "target": ["nsis"] },
-    "linux": { "target": ["AppImage", "deb"] }
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "map-layers",
+        "to": "map-layers",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "@tanstack/react-table": "^8.20.5",
@@ -30,15 +62,21 @@
     "d3": "^7.9.0",
     "date-fns": "^4.4.0",
     "docx": "^9.7.2",
+    "fflate": "^0.8.3",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
     "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
+    "leaflet.markercluster": "^1.5.3",
     "lucide-react": "^0.474.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-is": "^19.3.0",
     "react-leaflet": "^5.0.0",
     "recharts": "^3.10.1",
+    "simpleheat": "^0.4.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.15"
   },
@@ -46,6 +84,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "all-the-cities": "^3.1.0",
     "autoprefixer": "^10.6.1",
     "concurrently": "^10.0.5",
     "electron": "^44.4.5",
