@@ -1,16 +1,40 @@
-# React + Vite
+# SYLTHARAE File Intelligence
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Desktop-first file intelligence interface built with React, Vite, and Electron. The Electron window hosts the packaged interface locally and keeps the renderer isolated from Node.js. No browser or Vite server is required to run an installed app.
 
-Currently, two official plugins are available:
+## Desktop application
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The desktop package includes the user interface, **not** the SYLTHARAE Flask/PostgreSQL data service. The service must be reachable from the computer (locally or over a trusted network). By default the app connects to `http://127.0.0.1:5000`.
 
-## React Compiler
+Configure another backend by setting `SYLTHARAE_BACKEND_URL` in the environment before launch/build, for example:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+SYLTHARAE_BACKEND_URL=https://syltharae.example.org npm run dev:desktop
+```
 
-## Expanding the Oxlint configuration
+On Windows PowerShell, use `$env:SYLTHARAE_BACKEND_URL="http://127.0.0.1:5000"` before running the command.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Run from source
+
+```bash
+npm ci
+npm run dev:desktop
+```
+
+This starts Vite and opens the interface in Electron. `npm run dev` remains available for browser-based frontend development.
+
+### Build installable packages
+
+```bash
+npm ci
+npm run build:desktop
+```
+
+Installers are written to `release/` (DMG/ZIP for macOS, NSIS for Windows, AppImage/DEB for Linux). Build a platform target on its supported operating system. Configure `SYLTHARAE_BACKEND_URL` for the environment where the installed app will be launched; when unset, localhost is used.
+
+## Frontend checks
+
+```bash
+npm run build
+npm run lint
+```

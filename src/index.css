@@ -1,36 +1,94 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --canvas: #f4f6f8;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-raised: #eef2f6;
+  --line: #dbe3eb;
+  --ink: #263445;
+  --ink-muted: #68798b;
+  --brand: #0f766e;
+  --brand-soft: #e8f5f3;
+  --focus: #0d9488;
 }
+
+::selection { background: #bce9e3; color: #123a37; }
+
+:root[data-theme='mist'] { --canvas: #f1f5f9; --surface-muted: #f1f5f9; --surface-raised: #e7edf4; }
+:root[data-theme='sage'] { --canvas: #f2f6f2; --surface-muted: #f5f8f5; --surface-raised: #e9f0e9; --brand: #3f735d; }
+:root[data-theme='mist'] .bg-surface-950, :root[data-theme='mist'] body { background-color: #f1f5f9 !important; }
+:root[data-theme='mist'] .bg-surface-850 { background-color: #f1f5f9 !important; }
+:root[data-theme='mist'] .bg-surface-800 { background-color: #e9eff5 !important; }
+:root[data-theme='sage'] .bg-surface-950, :root[data-theme='sage'] body { background-color: #f2f6f2 !important; }
+:root[data-theme='sage'] .bg-surface-850 { background-color: #f5f8f5 !important; }
+:root[data-theme='sage'] .bg-surface-800 { background-color: #e9f0e9 !important; }
+:root[data-theme='mist'] .border-surface-border { border-color: #cbd5e1 !important; }
+:root[data-theme='sage'] .border-surface-border { border-color: #d2ded2 !important; }
+:root[data-scale='compact'] { font-size: 14px; }
+:root[data-scale='standard'] { font-size: 16px; }
+:root[data-scale='large'] { font-size: 18px; }
+:root[data-contrast='high'] { --line: #9aa9b8; --ink: #172433; --ink-muted: #435466; }
+:root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+:root[data-contrast='high'] :focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
 
 html, body, #root { height: 100%; }
 
 body {
-  @apply bg-surface-950 text-slate-200 antialiased;
+  @apply bg-surface-950 text-slate-700 antialiased;
   font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
 
 * { box-sizing: border-box; }
 
+/* The product uses a warm, paper-white canvas with restrained teal accents. */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a3346; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #38445c; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-.focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900; }
+.focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white; }
 
 .scrollbar-thin { scrollbar-width: thin; }
 
 .kbd {
-  @apply inline-flex items-center justify-center rounded border border-surface-border bg-surface-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400;
+  @apply inline-flex items-center justify-center rounded border border-surface-border bg-surface-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500;
 }
 
 @keyframes fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
 .animate-fade-in { animation: fade-in .15s ease-out; }
 
-.leaflet-container { background: #0b0e14 !important; }
+.leaflet-container { background: #f8fafc !important; }
+
+/* Existing screens use slate text tokens designed for the former dark canvas. */
+@layer utilities {
+  .text-slate-200 { color: #263445; }
+  .text-slate-300 { color: #34465a; }
+  .text-slate-400 { color: #526477; }
+  .text-slate-500 { color: #68798b; }
+  .text-slate-600 { color: #8492a1; }
+  /* Light-surface accessible variants for formerly pastel-on-dark labels. */
+  .text-blue-200, .text-blue-300 { color: #0f766e; }
+  .text-blue-400 { color: #0d9488; }
+  .text-emerald-200, .text-emerald-300 { color: #15803d; }
+  .text-emerald-400 { color: #16803c; }
+  .text-amber-300, .text-amber-400 { color: #a16207; }
+  .text-red-200, .text-red-300 { color: #b42318; }
+  .text-red-400 { color: #c24136; }
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-xl border border-surface-border bg-white shadow-panel;
+  }
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500;
+  }
+  .control-surface {
+    @apply rounded-lg border border-surface-border bg-white text-slate-700 transition-colors;
+  }
+  .control-surface:hover { @apply border-slate-400 bg-surface-850; }
+}

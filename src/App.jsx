@@ -60,6 +60,16 @@ export default function App() {
   const viewMode = useAppStore((s) => s.viewMode);
   const appMode = useAppStore((s) => s.appMode);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const preferences = useAppStore((s) => s.preferences);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = preferences?.theme || 'porcelain';
+    root.dataset.scale = preferences?.fontScale || 'standard';
+    root.dataset.contrast = preferences?.highContrast ? 'high' : 'normal';
+    root.lang = preferences?.language || 'en';
+    root.classList.toggle('reduce-motion', !!preferences?.reducedMotion || preferences?.showAnimations === false);
+  }, [preferences]);
 
   const rows = useResults();
 

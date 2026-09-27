@@ -17,7 +17,7 @@ export default function Modal({ onClose, title, children, width = 460 }) {
         className="max-h-[85vh] overflow-y-auto rounded-xl border border-surface-border bg-surface-850 shadow-2xl shadow-black/60"
       >
         <div className="flex items-center justify-between border-b border-surface-border px-5 py-3.5">
-          <h2 className="text-[14px] font-semibold text-white">{title}</h2>
+          <h2 className="text-[14px] font-semibold text-slate-800">{title}</h2>
           <button onClick={onClose} aria-label="Close dialog" className="rounded p-1 text-slate-500 hover:bg-surface-700 hover:text-slate-200 focus-ring">
             <X size={16} />
           </button>

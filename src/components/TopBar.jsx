@@ -5,6 +5,7 @@ import { useSearchStore } from '../store/useSearchStore';
 import DropdownMenu, { MenuItem, MenuSeparator, MenuLabel } from './ui/DropdownMenu';
 import UniversalExportDialog from './export/UniversalExportDialog';
 import { toast } from './ui/Toast';
+import SettingsDialog from './SettingsDialog';
 
 export default function TopBar() {
   const query = useSearchStore((s) => s.query);
@@ -33,6 +34,7 @@ export default function TopBar() {
 
   const [showSuggest, setShowSuggest] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -227,11 +229,16 @@ export default function TopBar() {
         }
       >
         {({ close }) => (
-          <MenuItem icon={LogOut} label="Sign out" onClick={() => { logout(); close(); }} />
+          <>
+            <MenuItem icon={Settings2} label="Preferences & settings" onClick={() => { setSettingsOpen(true); close(); }} />
+            <MenuSeparator />
+            <MenuItem icon={LogOut} label="Sign out" onClick={() => { logout(); close(); }} />
+          </>
         )}
       </DropdownMenu>
 
       {exportOpen && <UniversalExportDialog mode="query" onClose={() => setExportOpen(false)} />}
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </header>
   );
 }
