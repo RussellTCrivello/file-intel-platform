@@ -47,6 +47,13 @@ places), **Aerial** (Esri World Imagery), and **Terrain** (OpenTopoMap). Choose
 unavailable, the bundled Natural Earth coastline and country geometry remains visible
 and the map reports that it is using the local fallback.
 
+**Offline tiles.** Standard, Aerial and Terrain tiles are stored on disk (browser
+Cache Storage) as you browse, and drawn from there first, so anywhere you've viewed
+stays viewable without a connection. Use **Save offline** (bottom-left of any map) to
+download the visible area for a zoom range and one or more basemaps ahead of time
+(capped at 60,000 tiles per basemap per download; respect each provider's tile usage
+policy). The same panel shows storage used and can clear saved tiles.
+
 ### The layer database
 
 Map data lives in a single compressed file, `map-layers/layers.db`, inside the
