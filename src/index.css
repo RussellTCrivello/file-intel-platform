@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  @apply bg-surface-950 text-slate-200 antialiased;
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+}
+
+* { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3346; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #38445c; }
+
+.focus-ring { @apply outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-900; }
+
+.scrollbar-thin { scrollbar-width: thin; }
+
+.kbd {
+  @apply inline-flex items-center justify-center rounded border border-surface-border bg-surface-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400;
+}
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fade-in .15s ease-out; }
+
+.leaflet-container { background: #0b0e14 !important; }
