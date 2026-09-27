@@ -3,11 +3,25 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:desktop": "concurrently -k \"vite --host 127.0.0.1 --strictPort\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
+    "build:desktop": "vite build && electron-builder",
+    "desktop": "electron ."
+  },
+  "build": {
+    "appId": "ai.arena.syltharae.fileintel",
+    "productName": "SYLTHARAE File Intelligence",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "desktop/**/*", "package.json"],
+    "asar": true,
+    "mac": { "target": ["dmg", "zip"] },
+    "win": { "target": ["nsis"] },
+    "linux": { "target": ["AppImage", "deb"] }
   },
   "dependencies": {
     "@tanstack/react-table": "^8.20.5",
@@ -33,9 +47,13 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.6.1",
+    "concurrently": "^10.0.5",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "oxlint": "^1.81.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.13",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "wait-on": "^9.1.0"
   }
 }

@@ -17,6 +17,7 @@ export const useAppStore = create()(
       appMode: 'explorer', // 'explorer' (browse/filter) | 'results' (query results + reader)
       viewMode: 'dashboard', // which presentation of the current result set is showing
       density: 'comfortable',
+      preferences: { theme: 'porcelain', fontScale: 'standard', density: 'comfortable', language: 'en', dateFormat: 'locale', timeFormat: '24h', numberFormat: 'locale', timezone: 'local', pageSize: 50, reducedMotion: false, highContrast: false, showAnimations: true, confirmActions: true },
       sidebarOpen: true,
       expandedCategories: { Document: true, Image: true },
       commandPaletteOpen: false,
@@ -77,6 +78,7 @@ export const useAppStore = create()(
       setAppMode: (appMode) => set({ appMode }),
       setViewMode: (viewMode) => set({ viewMode }),
       setDensity: (density) => set({ density }),
+      updatePreferences: (patch) => set((s) => ({ preferences: { ...s.preferences, ...patch } })),
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       toggleCategoryExpanded: (key) => set((s) => ({ expandedCategories: { ...s.expandedCategories, [key]: !s.expandedCategories[key] } })),
       setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
@@ -171,6 +173,7 @@ export const useAppStore = create()(
       name: 'file-intel-platform-ui-store',
       partialize: (s) => ({
         density: s.density,
+        preferences: s.preferences,
         visibleColumns: s.visibleColumns,
         columnOrder: s.columnOrder,
         columnWidths: s.columnWidths,
