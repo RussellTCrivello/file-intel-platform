@@ -9,6 +9,7 @@
 //   --bbox     west,south,east,north in degrees             (default: whole world)
 //   --zoom     min-max                                      (default: 0-5)
 //   --concurrency N                                         (default: 4)
+//   --limit N  max tiles per map for this run               (default: 250000)
 //
 // Tiles already in the pack are skipped, so a run can be resumed. Respect
 // each provider's tile usage policy -- OpenStreetMap in particular forbids
@@ -23,7 +24,6 @@ const require = createRequire(import.meta.url);
 const tilePack = require('../desktop/tilePack.cjs');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packRoot = path.join(root, 'map-layers');
-const LIMIT = 250000;
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) => {
   if (a.startsWith('--')) acc.push([a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true]);
@@ -47,6 +47,7 @@ const [west, south, east, north] = args.bbox ? String(args.bbox).split(',').map(
 if (![west, south, east, north].every(Number.isFinite)) { console.error('--bbox must be west,south,east,north'); process.exit(1); }
 const [minZoom, maxZoom] = String(args.zoom || '0-5').split('-').map(Number);
 const bounds = { west, south, east, north };
+const LIMIT = Number(args.limit) || 250000;
 const concurrency = Math.max(1, Math.min(16, Number(args.concurrency) || 4));
 
 for (const map of maps) {
