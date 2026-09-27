@@ -40,9 +40,12 @@ both read and rewrite it after installation.
 ## Maps
 
 Both map views (Geolocation, and the Geolocation section of File Analysis) draw from
-a local layer database. There are no tile requests and no third-party map services,
-so the basemap, the place search and the coordinate tools all work with no internet
-connection.
+a local layer database and include a full offline vector fallback. The map-view control
+also offers real live basemaps when connected: **Standard** (OpenStreetMap roads and
+places), **Aerial** (Esri World Imagery), and **Terrain** (OpenTopoMap). Choose
+**Offline** for a session with no tile requests. If a live tile source becomes
+unavailable, the bundled Natural Earth coastline and country geometry remains visible
+and the map reports that it is using the local fallback.
 
 ### The layer database
 

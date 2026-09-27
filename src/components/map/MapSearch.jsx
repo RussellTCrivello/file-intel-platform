@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMap } from 'react-leaflet';
 import L from './leafletGlobal.js';
 import { Crosshair, MapPin, Search, Target, X } from 'lucide-react';
@@ -22,7 +22,7 @@ const MODES = [
  * Every mode is answered from local data; there is no geocoding service to
  * call, which is the whole point -- this has to work with the machine offline.
  */
-export default function MapSearch({ points = [], onSelectArea }) {
+export default function MapSearch({ points = [], onSelectArea, onClearArea }) {
   const map = useMap();
   const [mode, setMode] = useState('coords');
   const [query, setQuery] = useState('');
@@ -31,7 +31,8 @@ export default function MapSearch({ points = [], onSelectArea }) {
   const [reverse, setReverse] = useState(null);
   const [pin, setPin] = useState(null);
   const [countriesIndex, setCountriesIndex] = useState(null);
-  const [area, setArea] = useState({ centre: '', radius: '' });
+  const [areaMode, setAreaMode] = useState('radius');
+  const [area, setArea] = useState({ centre: '', radius: '', firstCorner: '', secondCorner: '' });
   const [areaResult, setAreaResult] = useState(null);
   const pinRef = useRef(null);
 
@@ -120,7 +121,7 @@ export default function MapSearch({ points = [], onSelectArea }) {
     if (kind === 'radius') {
       const centre = parseCoordinates(area.centre);
       const radiusKm = Number(area.radius);
-      if (centre.error || !Number.isFinite(centre.lat)) { setError(centre.error || 'Enter a valid centre coordinate.'); return; }
+      if (centre.error || !Number.isFinite(centre.lat) || !Number.isFinite(centre.lng)) { setError(centre.error || 'Enter a valid centre coordinate.'); return; }
       if (!Number.isFinite(radiusKm) || radiusKm <= 0) { setError('Enter a radius in kilometres.'); return; }
       const box = boundingBox(centre.lat, centre.lng, radiusKm);
       const inside = points.filter((p) => inBoundingBox(p.lat, p.lng, box));
@@ -130,11 +131,28 @@ export default function MapSearch({ points = [], onSelectArea }) {
       return;
     }
 
-    const box = parseCoordinates(area.centre);
-    if (box.error || box.lat === undefined || box.lng === undefined) {
-      setError('Enter two corners, e.g. 52.0, 4.0 then 53.0, 5.0');
+    const first = parseCoordinates(area.firstCorner);
+    const second = parseCoordinates(area.secondCorner);
+    if (first.error || second.error || !Number.isFinite(first.lat) || !Number.isFinite(first.lng) || !Number.isFinite(second.lat) || !Number.isFinite(second.lng)) {
+      setError('Enter two corners, for example 52.0, 4.0 and 53.0, 5.0.');
       return;
     }
+    const box = {
+      south: Math.min(first.lat, second.lat),
+      north: Math.max(first.lat, second.lat),
+      west: Math.min(first.lng, second.lng),
+      east: Math.max(first.lng, second.lng),
+    };
+    const inside = points.filter((p) => inBoundingBox(p.lat, p.lng, box));
+    setAreaResult({ kind: 'box', box, count: inside.length, ids: inside.map((p) => p.id) });
+    map.fitBounds([[box.south, box.west], [box.north, box.east]], { padding: [40, 40], duration: 0.6 });
+    onSelectArea?.(new Set(inside.map((p) => p.id)));
+  };
+
+  const clearArea = () => {
+    setAreaResult(null);
+    setError(null);
+    onClearArea?.();
   };
 
   // Re-read on every search, so the count appears as soon as the gazetteer
@@ -215,32 +233,73 @@ export default function MapSearch({ points = [], onSelectArea }) {
 
         {mode === 'area' && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Centre coordinate</label>
-            <input
-              value={area.centre}
-              onChange={(e) => setArea({ ...area, centre: e.target.value })}
-              placeholder="52.37, 4.89"
-              className="rounded-md border border-surface-border bg-surface-800 px-2 py-1.5 font-mono text-[11.5px] text-slate-300 outline-none focus:border-teal-600/50"
-            />
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Radius (km)</label>
-            <input
-              value={area.radius}
-              onChange={(e) => setArea({ ...area, radius: e.target.value })}
-              placeholder="25"
-              inputMode="decimal"
-              className="rounded-md border border-surface-border bg-surface-800 px-2 py-1.5 font-mono text-[11.5px] text-slate-300 outline-none focus:border-teal-600/50"
-            />
+            <div className="flex rounded-md border border-surface-border bg-surface-800 p-0.5">
+              <button
+                type="button"
+                onClick={() => { setAreaMode('radius'); setError(null); }}
+                className={`flex-1 rounded px-2 py-1 text-[10.5px] font-medium ${areaMode === 'radius' ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Radius
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAreaMode('box'); setError(null); }}
+                className={`flex-1 rounded px-2 py-1 text-[10.5px] font-medium ${areaMode === 'box' ? 'bg-white text-teal-800 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Bounding box
+              </button>
+            </div>
+
+            {areaMode === 'radius' ? (
+              <>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Centre coordinate</label>
+                <input
+                  value={area.centre}
+                  onChange={(e) => setArea({ ...area, centre: e.target.value })}
+                  placeholder="52.37, 4.89"
+                  className="rounded-md border border-surface-border bg-surface-800 px-2 py-1.5 font-mono text-[11.5px] text-slate-300 outline-none focus:border-teal-600/50"
+                />
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Radius (km)</label>
+                <input
+                  value={area.radius}
+                  onChange={(e) => setArea({ ...area, radius: e.target.value })}
+                  placeholder="25"
+                  inputMode="decimal"
+                  className="rounded-md border border-surface-border bg-surface-800 px-2 py-1.5 font-mono text-[11.5px] text-slate-300 outline-none focus:border-teal-600/50"
+                />
+              </>
+            ) : (
+              <>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">First corner</label>
+                <input
+                  value={area.firstCorner}
+                  onChange={(e) => setArea({ ...area, firstCorner: e.target.value })}
+                  placeholder="52.0, 4.0"
+                  className="rounded-md border border-surface-border bg-surface-800 px-2 py-1.5 font-mono text-[11.5px] text-slate-300 outline-none focus:border-teal-600/50"
+                />
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Opposite corner</label>
+                <input
+                  value={area.secondCorner}
+                  onChange={(e) => setArea({ ...area, secondCorner: e.target.value })}
+                  placeholder="53.0, 5.0"
+                  className="rounded-md border border-surface-border bg-surface-800 px-2 py-1.5 font-mono text-[11.5px] text-slate-300 outline-none focus:border-teal-600/50"
+                />
+              </>
+            )}
             <button
-              onClick={() => submitArea('radius')}
+              onClick={() => submitArea(areaMode)}
               className="mt-0.5 flex items-center justify-center gap-1.5 rounded-md bg-teal-700 px-2 py-1.5 text-[11.5px] font-medium text-white hover:bg-teal-800"
             >
               <Target size={12} /> Search this area
             </button>
             {areaResult && (
-              <p className="rounded border border-surface-border bg-surface-850 px-2 py-1.5 text-[11px] text-slate-400">
-                {areaResult.count} file marker{areaResult.count === 1 ? '' : 's'} inside
-                {areaResult.kind === 'radius' ? ` ${areaResult.radiusKm} km` : ' the box'}.
-              </p>
+              <div className="flex items-center gap-2 rounded border border-surface-border bg-surface-850 px-2 py-1.5 text-[11px] text-slate-400">
+                <span className="min-w-0 flex-1">
+                  {areaResult.count} file marker{areaResult.count === 1 ? '' : 's'} inside
+                  {areaResult.kind === 'radius' ? ` ${areaResult.radiusKm} km` : ' the box'}.
+                </span>
+                <button type="button" onClick={clearArea} className="shrink-0 font-medium text-teal-700 hover:text-teal-800">Clear</button>
+              </div>
             )}
           </div>
         )}
